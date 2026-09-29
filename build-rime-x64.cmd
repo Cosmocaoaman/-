@@ -12,7 +12,7 @@ if not defined VSROOT (
 )
 call "%VSROOT%\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64
 if errorlevel 1 exit /b %errorlevel%
-set "PATH=%~dp0.venv\Scripts;%PATH%"
+set "PATH=%~dp0.venv\Scripts;%~dp0.build-tools\cmake4\cmake\data\bin;%~dp0.build-tools\python-tools\bin;%PATH%"
 cd /d "%~dp0librime"
 call build.bat deps librime test
 exit /b %errorlevel%

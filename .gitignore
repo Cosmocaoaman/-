@@ -32,3 +32,6 @@ librime/include/
 librime/lib/
 librime/bin/
 librime/share/
+
+# Optional local frontend reference checkout
+/weasel/
