@@ -1,0 +1,26 @@
+config_version: '1.0'
+schema_list:
+  - schema: local_ai_pinyin
+menu:
+  page_size: 5
+ascii_composer:
+  good_old_caps_lock: true
+  switch_key:
+    Caps_Lock: clear
+    Shift_L: inline_ascii
+    Shift_R: noop
+    Control_L: noop
+    Control_R: noop
+switcher:
+  caption: 本地AI开发版
+  hotkeys:
+    - Control+grave
+punctuator:
+  half_shape:
+    ',': '，'
+    '.': '。'
+    '?': '？'
+    '!': '！'
+  full_shape:
+    ',': '，'
+    '.': '。'

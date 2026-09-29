@@ -1,0 +1,53 @@
+schema:
+  schema_id: local_ai_pinyin
+  name: 本地AI拼音·开发版
+  version: '0.1.0'
+  description: 'Ctrl+Tab 请求/查看补全；Tab 或空格确认；Esc 返回原输入。仅处理尚未上屏的拼音候选。'
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: [中文, ASCII]
+  - name: simplification
+    reset: 1
+    states: [繁体, 简体]
+engine:
+  processors:
+    - local_ai_processor
+    - ascii_composer
+    - recognizer
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - local_ai_segmentor
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - local_ai_translator
+    - punct_translator
+    - script_translator
+  filters:
+    - simplifier
+    - uniquifier
+speller:
+  alphabet: zyxwvutsrqponmlkjihgfedcba
+  delimiter: " '"
+translator:
+  dictionary: luna_pinyin
+  enable_user_dict: true
+simplifier:
+  option_name: simplification
+  opencc_config: t2s.json
+  tips: none
+  excluded_types: [local_ai]
+punctuator:
+  import_preset: default
+local_ai:
+  # Only 127.0.0.1 is supported. No network/cloud fallback.
+  port: 18080
+  model: qwen3.5-0.8b

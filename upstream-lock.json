@@ -1,0 +1,52 @@
+[
+  {
+    "path": "librime",
+    "url": "https://github.com/rime/librime.git",
+    "commit": "388911c517155eb09f7922db90771e31eaa71e54"
+  },
+  {
+    "path": "librime/deps/glog",
+    "url": "https://github.com/google/glog.git",
+    "commit": "7b134a5c82c0c0b5698bb6bf7a835b230c5638e4"
+  },
+  {
+    "path": "librime/deps/googletest",
+    "url": "https://github.com/google/googletest.git",
+    "commit": "f8d7d77c06936315286eb55f8de22cd23c188571"
+  },
+  {
+    "path": "librime/deps/leveldb",
+    "url": "https://github.com/google/leveldb.git",
+    "commit": "99b3c03b3284f5886f9ef9a4ef703d57373e61be"
+  },
+  {
+    "path": "librime/deps/leveldb/third_party/benchmark",
+    "url": "https://github.com/google/benchmark",
+    "commit": "bf585a2789e30585b4e3ce6baf11ef2750b54677"
+  },
+  {
+    "path": "librime/deps/leveldb/third_party/googletest",
+    "url": "https://github.com/google/googletest.git",
+    "commit": "c27acebba3b3c7d94209e0467b0a801db4af73ed"
+  },
+  {
+    "path": "librime/deps/marisa-trie",
+    "url": "https://github.com/s-yata/marisa-trie.git",
+    "commit": "3e87d53b78e15f2f43783d5e376561a8c9722051"
+  },
+  {
+    "path": "librime/deps/opencc",
+    "url": "https://github.com/BYVoid/OpenCC.git",
+    "commit": "025f371dc76b598d77384fbdab90c937471844d8"
+  },
+  {
+    "path": "librime/deps/yaml-cpp",
+    "url": "https://github.com/jbeder/yaml-cpp.git",
+    "commit": "2f86d13775d119edbb69af52e5f566fd65c6953b"
+  },
+  {
+    "path": "weasel (reference only; not vendored)",
+    "url": "https://github.com/rime/weasel.git",
+    "commit": "d73f6295e8252ed2f7b9c12bae32e9001b1afdaa"
+  }
+]
