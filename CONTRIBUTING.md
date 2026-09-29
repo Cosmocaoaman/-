@@ -11,3 +11,12 @@
 如需复现故障，提供 Windows/VS 版本、架构、最小操作步骤和脱敏日志。不要上传日常输入文本或用户词库。
 
 可继续推进的方向：真实模型适配、超时与长度策略、候选自动刷新、更多故障测试，以及各 Windows 应用中的 TSF 兼容性验证。
+
+## 统一开发入口
+
+首次克隆执行 .\dev.cmd -Setup -BuildOnly；日常代码验证执行 .\dev.cmd -BuildOnly。
+更新自己已安装的小狼毫时执行 .\dev.cmd，模拟后端可加 -StartMock。
+先运行 .\dev.cmd -Check 核对环境和安装路径；多份安装用 -InstallDir 指定。
+使用前提、首次安装和回滚说明见 README 的协作者通用命令。
+
+提交部署脚本修改时，同时运行 powershell -NoProfile -File .\tests\test-dev-environment.ps1。

@@ -18,15 +18,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Test installation discovery
+        shell: powershell
+        run: .\tests\test-dev-environment.ps1
       - name: Prepare tools and dictionaries
         shell: powershell
         run: .\scripts\setup.ps1
+      - name: Shared developer command (no deployment)
+        if: matrix.arch == 'x86'
+        shell: cmd
+        run: dev.cmd -BuildOnly
       - name: Build and run upstream tests
+        if: matrix.arch == 'x64'
         shell: powershell
         run: .\build-rime-${{ matrix.arch }}.ps1
       - name: Run local AI integration tests
+        if: matrix.arch == 'x64'
         shell: powershell
-        run: .\.venv\Scripts\python.exe .\ai\tests\run_integration.py --arch ${{ matrix.arch }}
+        run: .\.venv\Scripts\python.exe .\ai\tests\run_integration.py --arch ${{ matrix.arch }} --port 0
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,9 +1,15 @@
 param(
-    [string]$InstallDir = (Join-Path $env:LOCALAPPDATA 'Programs\RimeAI'),
-    [switch]$StartMock
+    [string]$InstallDir = '',
+    [switch]$StartMock,
+    [switch]$Setup,
+    [switch]$BuildOnly,
+    [switch]$Check,
+    [string]$Python = '',
+    [string]$SevenZip = ''
 )
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+. (Join-Path $root 'scripts\dev-environment.ps1')
 $stamp = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8)
 $logDir = Join-Path $root "ai\logs\deploy-$stamp"
 $mutex = New-Object Threading.Mutex($false, 'Local\RimeAI-Developer-Deploy')
@@ -79,20 +85,41 @@ try {
     try { $locked = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $locked = $true }
     if (!$locked) { throw 'Another Rime AI deployment is already running.' }
     if (![Environment]::Is64BitProcess) { throw 'Run this script in 64-bit PowerShell.' }
-    $InstallDir = (Resolve-Path -LiteralPath $InstallDir).Path
-    $server = Join-Path $InstallDir 'WeaselServer.exe'
-    $deployer = Join-Path $InstallDir 'WeaselDeployer.exe'
-    $installedDll = Join-Path $InstallDir 'rime.dll'
-    $installedSchema = Join-Path $InstallDir 'data\local_ai_pinyin.schema.yaml'
+    if ($Check -and $Setup) { throw '-Check is read-only and cannot be combined with -Setup.' }
+    if ($BuildOnly -and $StartMock) { throw '-BuildOnly does not start services; omit -StartMock.' }
+    if (!$Python) {
+        $Python = Join-Path $root '.venv\Scripts\python.exe'
+        if (!(Test-Path $Python)) { $Python = (Get-Command python -ErrorAction Stop).Source }
+    } else { $Python = (Get-Command $Python -ErrorAction Stop).Source }
+    if ($Setup) {
+        # Use base Python, not the venv being recreated by setup.
+        $setupPython = & $Python -c 'import sys; print(sys._base_executable)'
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot determine base Python for setup.' }
+        $setupArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File', ('"' + (Join-Path $root 'scripts\setup.ps1') + '"'), '-Python', ('"' + $setupPython + '"'))
+        if ($SevenZip) { $setupArgs += @('-SevenZip', ('"' + $SevenZip + '"')) }
+        New-Item -ItemType Directory -Force $logDir | Out-Null
+        Write-Host 'Preparing pinned project dependencies...'
+        InvokeLogged 'powershell.exe' $setupArgs 'setup'
+        $Python = Join-Path $root '.venv\Scripts\python.exe'
+    }
+    Assert-DevPrerequisites -Root $root -Python $Python
     $engine = Join-Path $root 'librime\dist-x86\lib\rime.dll'
     $schema = Join-Path $root 'ai\rime-data\local_ai_pinyin.schema.yaml'
-    foreach ($file in @($server, $deployer, $installedDll, $installedSchema, $schema)) {
-        if (!(Test-Path -LiteralPath $file -PathType Leaf)) { throw "Missing $file. This command updates an existing Rime AI installation; it does not install or register an IME." }
+    if (!$BuildOnly) {
+        $InstallDir = Find-WeaselInstallation -ExplicitPath $InstallDir
+        Write-Host "Target installation: $InstallDir"
+        $server = Join-Path $InstallDir 'WeaselServer.exe'
+        $deployer = Join-Path $InstallDir 'WeaselDeployer.exe'
+        $installedDll = Join-Path $InstallDir 'rime.dll'
+        $installedSchema = Join-Path $InstallDir 'data\local_ai_pinyin.schema.yaml'
+        foreach ($file in @($server, $deployer, $installedDll, $schema)) {
+            if (!(Test-Path -LiteralPath $file -PathType Leaf)) { throw "Missing $file. Install official Weasel first; this command does not register an IME." }
+        }
+        if (!(Test-Path -LiteralPath (Join-Path $InstallDir 'data') -PathType Container)) { throw 'Installation has no shared data directory.' }
+        if ((Machine $server) -ne 0x14c -or (Machine $installedDll) -ne 0x14c) { throw 'This deployment command requires an x86 Weasel server and engine.' }
+        CheckServerPaths
     }
-    if ((Machine $server) -ne 0x14c -or (Machine $installedDll) -ne 0x14c) { throw 'This deployment command requires an x86 Weasel server and engine.' }
-    CheckServerPaths
-    $python = Join-Path $root '.venv\Scripts\python.exe'
-    if (!(Test-Path $python)) { $python = (Get-Command python -ErrorAction Stop).Source }
+    if ($Check) { Write-Host 'Preflight passed. No build, service restart, or installation change performed.'; return }
     New-Item -ItemType Directory -Force $logDir | Out-Null
     Write-Host "Logs: $logDir"
     Write-Host '[1/5] Build x86 and run upstream tests...'
@@ -100,6 +127,12 @@ try {
     if ((Machine $engine) -ne 0x14c) { throw 'New engine is not x86.' }
     Write-Host '[2/5] Run isolated integration tests...'
     InvokeLogged $python @(('"' + (Join-Path $root 'ai\tests\run_integration.py') + '"'), '--arch','x86','--port','0') 'integration'
+    if ($BuildOnly) { Write-Host "Build and integration tests passed. Engine: $engine"; return }
+    # Fail before stopping the service if the caller cannot write the installation.
+    $writeProbe = Join-Path $InstallDir ('.rime-ai-write-' + $stamp)
+    try { [IO.File]::WriteAllText($writeProbe, '') }
+    catch { throw 'Installation is not writable. Rerun in an appropriately elevated terminal, or use -BuildOnly.' }
+    finally { if (Test-Path -LiteralPath $writeProbe) { Remove-Item -LiteralPath $writeProbe -Force } }
     if ($StartMock) {
         $client = New-Object Net.Sockets.TcpClient
         try { $client.Connect('127.0.0.1',18080); $listening = $true } catch { $listening = $false } finally { $client.Dispose() }
@@ -119,7 +152,9 @@ try {
     $backup = Join-Path $InstallDir ".rime-ai-backups\$stamp"
     New-Item -ItemType Directory -Force $backup | Out-Null
     Copy-Item -LiteralPath $installedDll -Destination (Join-Path $backup 'rime.dll')
-    Copy-Item -LiteralPath $installedSchema -Destination (Join-Path $backup 'local_ai_pinyin.schema.yaml')
+    $hadSchema = Test-Path -LiteralPath $installedSchema -PathType Leaf
+    if ($hadSchema) { Copy-Item -LiteralPath $installedSchema -Destination (Join-Path $backup 'local_ai_pinyin.schema.yaml') }
+    @{ schemaExisted=$hadSchema; install=$InstallDir } | ConvertTo-Json | Set-Content -Encoding UTF8 (Join-Path $backup 'backup.json')
     $oldHash = (Get-FileHash $installedDll).Hash
     Write-Host '[4/5] Restart input method with the new engine and redeploy AI schema...'
     $needsRecovery = $true
@@ -143,7 +178,8 @@ try {
         try {
             StopServer
             Copy-Item -LiteralPath (Join-Path $backup 'rime.dll') -Destination $installedDll -Force
-            Copy-Item -LiteralPath (Join-Path $backup 'local_ai_pinyin.schema.yaml') -Destination $installedSchema -Force
+            if ($hadSchema) { Copy-Item -LiteralPath (Join-Path $backup 'local_ai_pinyin.schema.yaml') -Destination $installedSchema -Force }
+            elseif (Test-Path -LiteralPath $installedSchema) { Remove-Item -LiteralPath $installedSchema -Force }
             InvokeLogged $deployer @('/deploy') 'rollback-schema' 120000
             StartServer
             Write-Warning "Previous engine and schema restored from $backup."

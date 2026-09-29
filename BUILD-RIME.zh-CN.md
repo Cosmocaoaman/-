@@ -7,6 +7,6 @@
 
 一键命令（包含启动 MOCK）：
 
-powershell -NoProfile -ExecutionPolicy Bypass -File .\dev.ps1 -StartMock
+.\dev.cmd -StartMock
 
 使用真实模型时省略 -StartMock。参数、备份和恢复说明见 README。

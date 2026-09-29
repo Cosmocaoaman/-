@@ -26,23 +26,41 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-rime-x64.ps1
 
 准备脚本安装项目内的 CMake/Ninja，下载并校验 Boost 1.92.0 和官方 Weasel 0.17.4 安装包；**只解压安装包获取前端和标准词典，不注册系统输入法**。下载缓存位于 `.downloads`。如果 Python/7-Zip 不在 PATH，可给脚本传 `-Python`、`-SevenZip` 完整路径。
 
-## 本机一键构建与部署
+## 协作者通用命令
 
-已经安装本项目 Rime AI 的开发者，在仓库根目录运行：
+仓库根目录的 `dev.cmd` 适用于 Windows x64 开发机，从当前仓库定位源码和工具，不包含个人路径。前提：**VS2022 C++ Build Tools + Windows SDK、Python 3.11+、7-Zip**。源码放在无空格的英文路径，例如 `C:\dev\rime-ai`。
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\dev.ps1 -StartMock
+# 首次克隆：准备依赖、构建并测试，不要求安装小狼毫
+.\dev.cmd -Setup -BuildOnly
+
+# 已安装小狼毫：构建、测试并更新本机，按需启动 MOCK
+.\dev.cmd -StartMock
 ```
 
-流程：x86 构建与上游测试 → 独立端口集成测试 → 备份旧 DLL/AI 方案 → 停止小狼毫 → 更新 DLL/AI 方案并重新部署 → 重启服务并验证 DLL 已加载。测试失败不会更新安装；部署阶段失败时尝试恢复备份，并明确报告恢复结果。
+| 命令 | 用途 |
+|---|---|
+| `.\dev.cmd -Check` | 只检查环境和目标安装，不构建、不重启 |
+| `.\dev.cmd -BuildOnly -Check` | 没安装小狼毫时检查构建环境 |
+| `.\dev.cmd -BuildOnly` | 构建 x86 并运行上游和隔离集成测试，不改变系统输入法 |
+| `.\dev.cmd` | 构建、测试并部署到本机，保留现有模型服务 |
+| `.\dev.cmd -StartMock` | 部署，并在 18080 没有后端时启动 MOCK |
+| `.\dev.cmd -InstallDir "D:\Apps\Weasel"` | 明确指定安装目录 |
+| `.\dev.cmd -Setup -BuildOnly -Python "C:\Python311\python.exe" -SevenZip "C:\Program Files\7-Zip\7z.exe"` | 首次准备时明确指定工具 |
 
-`-StartMock` 在 18080 无服务时启动项目 MOCK，已有后端则保留；这不是真实模型。使用真实模型时省略该参数，模型服务继续单独运行。默认更新 `%LOCALAPPDATA%\Programs\RimeAI`；其他目录可通过 `-InstallDir 'D:\Apps\RimeAI'` 指定。只支持已安装本项目 AI 方案的 x86 小狼毫，不负责首次安装、注册或更改默认输入法。
+`-Setup` 用于首次准备或显式刷新依赖，无需每次运行。不要在项目虚拟环境中的后端仍运行时重建该虚拟环境。`-Check` 不能和 `-Setup` 合用，`-BuildOnly` 不能和 `-StartMock` 合用。
 
-输入法在部署时会短暂不可用，执行前请提交或取消当前正在编辑的拼音。普通本地安装无需管理员；若目标目录需要写权限，则在相应权限的 64 位 PowerShell 中执行。
+安装目录选择顺序：显式 `-InstallDir` → 正在运行的小狼毫 → 注册表记录和用户级 RimeAI 安装目录。发现多份安装时拒绝猜测。仅支持 **x86 WeaselServer + x86 rime.dll**；其他架构会在替换之前被拒绝。
 
-日志和部署清单位于 `ai/logs/deploy-*`；备份位于安装目录 `.rime-ai-backups/<时间-编号>`，不会自动删除。个人词库、`default.custom.yaml` 和 Windows 默认输入法选择不会被覆盖；用户目录中的同名方案或 custom patch 仍可能覆盖共享方案。手动恢复时退出小狼毫，恢复备份 DLL 到安装目录、备份 schema 到 `data`，执行 `WeaselDeployer.exe /deploy` 后启动 `WeaselServer.exe`。
+首次没有小狼毫：通过准备脚本下载的 `.downloads/weasel-0.17.4.0-installer.exe` 正常安装官方前端，再运行部署命令。通用命令可以为已有官方安装新增 AI 共享方案，不要求之前安装过本项目。首次接入后从小狼毫“输入法设定”启用“本地AI拼音·开发版”，再切换该方案。如果界面未列出新方案，按下文 YAML 示例把它加入自己的 `schema_list` 并重新部署。已有个人配置不会被覆盖。这些是首次安装/选择步骤，后续代码更新只需 `dev.cmd`。
 
-脚本验证构建、协议测试、文件哈希和服务加载；实际应用打字效果仍需手动检查。它不会自动提交或推送 Git，GitHub Actions 也不会更新你的个人电脑。
+部署流程：构建 → 测试 → 备份旧 DLL/方案 → 停止服务 → 更新 DLL/方案并重新部署 → 重启并核对 DLL 加载路径。MOCK 不是真实模型，已有后端继续保留。脚本不会自动更改 Windows 默认输入法、注册新输入法、提交代码或推送 Git。
+
+执行前请提交或取消尚未上屏的拼音，更新时服务会短暂重启。受保护的安装目录可能需要管理员终端，脚本不会自行提权。构建/测试失败不会替换安装；部署失败会尝试恢复旧文件并报告结果。原先没有 AI 方案时，恢复会移除本次新添的共享方案。
+
+日志：`ai/logs/deploy-*`；备份：安装目录 `.rime-ai-backups/<时间-编号>`，含 `backup.json`。个人词库和方案选择不改动。手动恢复：退出服务、还原备份 DLL 和原有 schema（原先没有 schema 则移除本次添加的 `data/local_ai_pinyin.schema.yaml`），运行 `WeaselDeployer.exe /deploy`，再启动 `WeaselServer.exe`。备份不会自动清理。
+
+用户目录同名方案或 custom patch 可能覆盖共享方案；实际应用打字效果需要手动验收。GitHub Actions 使用不部署模式，不会更新任何开发者电脑。
 
 
 ## 启动演示（不改系统输入法）
