@@ -26,6 +26,25 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-rime-x64.ps1
 
 准备脚本安装项目内的 CMake/Ninja，下载并校验 Boost 1.92.0 和官方 Weasel 0.17.4 安装包；**只解压安装包获取前端和标准词典，不注册系统输入法**。下载缓存位于 `.downloads`。如果 Python/7-Zip 不在 PATH，可给脚本传 `-Python`、`-SevenZip` 完整路径。
 
+## 本机一键构建与部署
+
+已经安装本项目 Rime AI 的开发者，在仓库根目录运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\dev.ps1 -StartMock
+```
+
+流程：x86 构建与上游测试 → 独立端口集成测试 → 备份旧 DLL/AI 方案 → 停止小狼毫 → 更新 DLL/AI 方案并重新部署 → 重启服务并验证 DLL 已加载。测试失败不会更新安装；部署阶段失败时尝试恢复备份，并明确报告恢复结果。
+
+`-StartMock` 在 18080 无服务时启动项目 MOCK，已有后端则保留；这不是真实模型。使用真实模型时省略该参数，模型服务继续单独运行。默认更新 `%LOCALAPPDATA%\Programs\RimeAI`；其他目录可通过 `-InstallDir 'D:\Apps\RimeAI'` 指定。只支持已安装本项目 AI 方案的 x86 小狼毫，不负责首次安装、注册或更改默认输入法。
+
+输入法在部署时会短暂不可用，执行前请提交或取消当前正在编辑的拼音。普通本地安装无需管理员；若目标目录需要写权限，则在相应权限的 64 位 PowerShell 中执行。
+
+日志和部署清单位于 `ai/logs/deploy-*`；备份位于安装目录 `.rime-ai-backups/<时间-编号>`，不会自动删除。个人词库、`default.custom.yaml` 和 Windows 默认输入法选择不会被覆盖；用户目录中的同名方案或 custom patch 仍可能覆盖共享方案。手动恢复时退出小狼毫，恢复备份 DLL 到安装目录、备份 schema 到 `data`，执行 `WeaselDeployer.exe /deploy` 后启动 `WeaselServer.exe`。
+
+脚本验证构建、协议测试、文件哈希和服务加载；实际应用打字效果仍需手动检查。它不会自动提交或推送 Git，GitHub Actions 也不会更新你的个人电脑。
+
+
 ## 启动演示（不改系统输入法）
 
 构建成功后，在第一个 PowerShell 窗口启动服务：
@@ -98,7 +117,7 @@ patch:
     - schema: local_ai_pinyin
 ```
 
-恢复时退出服务，恢复原 DLL、移除新增方案并重新部署。系统安装需要相应权限，脚本不会自动替换你现有的输入法。应用兼容性与打字体验需自行验收。
+恢复时退出服务，恢复原 DLL、移除新增方案并重新部署。系统安装需要相应权限，准备和打包脚本不会自动替换现有输入法；需要自动更新时使用上文的 dev.ps1。应用兼容性与打字体验需自行验收。
 
 ## 代码与协作
 
