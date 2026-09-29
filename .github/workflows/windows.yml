@@ -20,7 +20,10 @@ jobs:
           python-version: '3.11'
       - name: Test installation discovery
         shell: powershell
-        run: .\tests\test-dev-environment.ps1
+        run: |
+          .\tests\test-dev-environment.ps1
+          .\tests\test-logged-process.ps1
+          .\tests\test-python-discovery.ps1
       - name: Prepare tools and dictionaries
         shell: powershell
         run: .\scripts\setup.ps1

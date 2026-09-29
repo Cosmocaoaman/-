@@ -19,4 +19,10 @@
 先运行 .\dev.cmd -Check 核对环境和安装路径；多份安装用 -InstallDir 指定。
 使用前提、首次安装和回滚说明见 README 的协作者通用命令。
 
-提交部署脚本修改时，同时运行 powershell -NoProfile -File .\tests\test-dev-environment.ps1。
+提交开发脚本修改时，同时运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\test-dev-environment.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\test-logged-process.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\test-python-discovery.ps1
+```

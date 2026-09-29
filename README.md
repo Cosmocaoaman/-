@@ -4,25 +4,42 @@
 
 当前后端是固定返回 `[MOCK]` 的协议测试服务，**不包含模型、微调权重或真实 AI 生成效果**。插件只发送当前尚未上屏的中文候选，不读取应用正文、剪贴板或已上屏历史。HTTP 固定访问 `127.0.0.1`，不使用云端回退。
 
+## 从这里开始
+
+只需要一个源码工作区：**打开包含 `dev.cmd` 和 `.git` 的目录**，也可以双击其中的 `rime-ai.code-workspace`。不要打开其上一层目录，不需要另外创建“输入法”或第二个 `rime-ai`。
+
+```powershell
+# 首次克隆后：安装项目依赖、编译并运行测试
+.\dev.cmd -Setup -BuildOnly
+
+# 日常修改 C++ 后：增量编译并测试
+.\dev.cmd -BuildOnly
+```
+
+VS Code 打开 `rime-ai.code-workspace` 后，按 `Ctrl+Shift+B` 执行日常构建；“终端 → 运行任务”提供环境检查、首次准备、MOCK 和部署入口。CMake 不会在打开目录时自行配置，统一使用已初始化 VS 工具链的脚本。
+
+要让 Windows 中已安装的小狼毫使用新代码，再运行 `.\dev.cmd`。源码目录、系统安装目录和个人词库承担不同用途；Git clone 不会安装系统输入法，也不会自动下载真实模型。
+
 ## 下载与环境
 
 支持 Windows 10/11 x64 主机，构建 x64 和 x86 引擎。插件使用 WinHTTP，暂不支持 Linux/macOS。准备：
 
 - Visual Studio 2022 / Build Tools 2022：安装“使用 C++ 的桌面开发”、MSVC v143 x86/x64 和 Windows SDK。
-- Python 3.11+（`python --version` 应可执行）。
+- Python 3.11+（支持 `py -3` 自动定位，也可传 `-Python` 完整路径）。
 - 7-Zip；Git for Windows（下载 ZIP 的用户不必安装 Git）。
 - 首次准备依赖需要联网和数 GB 可用磁盘空间。
 
 使用 **无空格的英文路径**，例如 `C:\dev\rime-ai`，避免上游批处理与路径编码问题。
 
 ```powershell
-git clone https://github.com/Cosmocaoaman/-.git C:\dev\rime-ai
+git clone https://github.com/Cosmocaoaman/rime-ai.git C:\dev\rime-ai
 cd C:\dev\rime-ai
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build-rime-x64.ps1
+.\dev.cmd -Setup -BuildOnly
 ```
 
 也可在 GitHub 点击 **Code → Download ZIP**，解压到上述路径，从 `setup.ps1` 开始。本仓库内的引擎及其依赖是普通源码文件，不需要 `git submodule update`。
+
+如果已经位于准备好的**空目录**，使用 `git clone https://github.com/Cosmocaoaman/rime-ai.git .`，末尾的 `.` 避免再嵌套一层目录。不要为了重试初始化而反复克隆；失败后在同一目录重新运行 `.\dev.cmd -Setup -BuildOnly`，终端和 `ai/logs/deploy-*` 会持续输出进度和错误。
 
 准备脚本安装项目内的 CMake/Ninja，下载并校验 Boost 1.92.0 和官方 Weasel 0.17.4 安装包；**只解压安装包获取前端和标准词典，不注册系统输入法**。下载缓存位于 `.downloads`。如果 Python/7-Zip 不在 PATH，可给脚本传 `-Python`、`-SevenZip` 完整路径。
 
@@ -65,7 +82,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-rime-x64.ps1
 
 ## 启动演示（不改系统输入法）
 
-构建成功后，在第一个 PowerShell 窗口启动服务：
+此控制台演示使用 x64 引擎；先运行 `powershell -NoProfile -ExecutionPolicy Bypass -File .\build-rime-x64.ps1`。然后在第一个 PowerShell 窗口启动服务：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\ai\start-mock.ps1
@@ -161,5 +178,6 @@ patch:
 - 没有 AI 候选：确认选择 AI 拼音方案、后端正常，且第二次按了 `Ctrl+Tab`。
 - DLL 加载失败：检查 x86/x64 是否匹配；优先从生成的 `build-*/bin` 运行控制台。
 - 移动目录后 CMake 报旧路径：清理该副本的 `build-x64`/`build-x86`（包含依赖中的同名构建目录）后重建，勿删除源文件。
+- 移动目录后工具找不到旧路径：先重跑 `.\dev.cmd -Setup -BuildOnly` 修复项目工具；编辑器请重新打开 `rime-ai.code-workspace`，勿保留旧的绝对 `cmake.sourceDirectory`。
 
 许可证按组件适用，见 [LICENSE](LICENSE) 和 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。个人词库、日志、模型和构建产物不提交。

@@ -1,3 +1,32 @@
+# Resolve a working interpreter, including Windows installations exposed only by py.
+function Resolve-DevPython {
+    param([string]$Root, [string]$Python = '', [switch]$Base)
+    $candidates = @()
+    if ($Python) {
+        $candidates += (Get-Command $Python -ErrorAction Stop).Source
+    } else {
+        if (!$Base) { $candidates += Join-Path $Root '.venv\Scripts\python.exe' }
+        $launcher = Get-Command py -ErrorAction SilentlyContinue
+        if ($launcher) {
+            try {
+                $discovered = & $launcher.Source -3 -c 'import sys; print(sys.executable)' 2>$null
+                if ($LASTEXITCODE -eq 0) { $candidates += $discovered }
+            } catch { }
+        }
+        $command = Get-Command python -ErrorAction SilentlyContinue
+        if ($command) { $candidates += $command.Source }
+    }
+    foreach ($candidate in ($candidates | Select-Object -Unique)) {
+        if (!(Test-Path -LiteralPath $candidate -PathType Leaf) -or $candidate -match '\\WindowsApps\\') { continue }
+        try {
+            $expression = if ($Base) { 'import sys; assert sys.version_info >= (3,11); print(sys._base_executable)' } else { 'import sys; assert sys.version_info >= (3,11); print(sys.executable)' }
+            $resolved = & $candidate -c $expression 2>$null
+            if ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $resolved -PathType Leaf)) { return $resolved }
+        } catch { }
+    }
+    throw 'No working Python 3.11+ found. Install Python with the py launcher, or pass -Python C:\path\to\python.exe.'
+}
+
 # Pure selection logic is separate from machine discovery so it can be tested.
 function Select-WeaselInstallation {
     param([string]$ExplicitPath, [string[]]$RunningPaths = @(), [string[]]$CandidatePaths = @())

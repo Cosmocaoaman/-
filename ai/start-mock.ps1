@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
-$python = Join-Path (Split-Path $PSScriptRoot -Parent) '.venv\Scripts\python.exe'
-if (!(Test-Path $python)) { $python = (Get-Command python -ErrorAction Stop).Source }
+$root = Split-Path $PSScriptRoot -Parent
+. (Join-Path $root 'scripts\dev-environment.ps1')
+$python = Resolve-DevPython -Root $root
 Write-Host 'MOCK backend only. No model loaded. Ctrl+C stops it.'
 & $python (Join-Path $PSScriptRoot 'scripts\mock_server.py')
 exit $LASTEXITCODE

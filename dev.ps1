@@ -10,6 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 . (Join-Path $root 'scripts\dev-environment.ps1')
+. (Join-Path $root 'scripts\logged-process.ps1')
 $stamp = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8)
 $logDir = Join-Path $root "ai\logs\deploy-$stamp"
 $mutex = New-Object Threading.Mutex($false, 'Local\RimeAI-Developer-Deploy')
@@ -28,29 +29,7 @@ function CheckServerPaths {
     }
 }
 function InvokeLogged([string]$file, [string[]]$arguments, [string]$label, [int]$timeout = 0) {
-    # Weasel compares the entire raw command line to /q and /deploy.
-    # Windows PowerShell Start-Process adds trailing whitespace; use exact arguments.
-    $info = New-Object Diagnostics.ProcessStartInfo
-    $info.FileName = $file
-    $info.Arguments = [string]::Join(' ', $arguments).Trim()
-    $info.WorkingDirectory = $root
-    $info.UseShellExecute = $false
-    $info.CreateNoWindow = $true
-    $info.RedirectStandardOutput = $true
-    $info.RedirectStandardError = $true
-    $proc = New-Object Diagnostics.Process
-    $proc.StartInfo = $info
-    $null = $proc.Start()
-    $stdout = $proc.StandardOutput.ReadToEndAsync()
-    $stderr = $proc.StandardError.ReadToEndAsync()
-    if ($timeout -gt 0) {
-        if (!$proc.WaitForExit($timeout)) { $proc.Kill(); $proc.WaitForExit(); throw "$label timed out. See $logDir" }
-    } else { $proc.WaitForExit() }
-    [IO.File]::WriteAllText((Join-Path $logDir "$label.out.log"), $stdout.GetAwaiter().GetResult())
-    [IO.File]::WriteAllText((Join-Path $logDir "$label.err.log"), $stderr.GetAwaiter().GetResult())
-    $code = $proc.ExitCode
-    $proc.Dispose()
-    if ($code -ne 0) { throw "$label failed (exit $code). See $logDir" }
+    Invoke-LoggedProcess -FilePath $file -ArgumentList $arguments -Label $label -TimeoutMilliseconds $timeout -WorkingDirectory $root -LogDirectory $logDir
 }
 function Machine([string]$file) {
     $bytes = [IO.File]::ReadAllBytes($file)
@@ -87,14 +66,10 @@ try {
     if (![Environment]::Is64BitProcess) { throw 'Run this script in 64-bit PowerShell.' }
     if ($Check -and $Setup) { throw '-Check is read-only and cannot be combined with -Setup.' }
     if ($BuildOnly -and $StartMock) { throw '-BuildOnly does not start services; omit -StartMock.' }
-    if (!$Python) {
-        $Python = Join-Path $root '.venv\Scripts\python.exe'
-        if (!(Test-Path $Python)) { $Python = (Get-Command python -ErrorAction Stop).Source }
-    } else { $Python = (Get-Command $Python -ErrorAction Stop).Source }
+    Write-Host "Workspace: $root"
+    $Python = Resolve-DevPython -Root $root -Python $Python -Base:$Setup
     if ($Setup) {
-        # Use base Python, not the venv being recreated by setup.
-        $setupPython = & $Python -c 'import sys; print(sys._base_executable)'
-        if ($LASTEXITCODE -ne 0) { throw 'Cannot determine base Python for setup.' }
+        $setupPython = $Python
         $setupArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File', ('"' + (Join-Path $root 'scripts\setup.ps1') + '"'), '-Python', ('"' + $setupPython + '"'))
         if ($SevenZip) { $setupArgs += @('-SevenZip', ('"' + $SevenZip + '"')) }
         New-Item -ItemType Directory -Force $logDir | Out-Null

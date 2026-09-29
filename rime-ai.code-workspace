@@ -1,0 +1,18 @@
+{
+  "folders": [{ "path": "." }],
+  "settings": {
+    "cmake.sourceDirectory": "${workspaceFolder}/librime",
+    "cmake.configureOnOpen": false,
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe"
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      { "label": "Rime: Check environment", "type": "shell", "command": ".\\dev.cmd -BuildOnly -Check", "options": { "cwd": "${workspaceFolder}" }, "problemMatcher": [] },
+      { "label": "Rime: First-time setup and test", "type": "shell", "command": ".\\dev.cmd -Setup -BuildOnly", "options": { "cwd": "${workspaceFolder}" }, "problemMatcher": [] },
+      { "label": "Rime: Build and test x86", "type": "shell", "command": ".\\dev.cmd -BuildOnly", "options": { "cwd": "${workspaceFolder}" }, "group": { "kind": "build", "isDefault": true }, "problemMatcher": [] },
+      { "label": "Rime: Start MOCK", "type": "shell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\ai\\start-mock.ps1", "options": { "cwd": "${workspaceFolder}" }, "problemMatcher": [] },
+      { "label": "Rime: Deploy to installed Weasel", "type": "shell", "command": ".\\dev.cmd", "options": { "cwd": "${workspaceFolder}" }, "problemMatcher": [] }
+    ]
+  }
+}
